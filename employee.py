@@ -1,12 +1,10 @@
 import streamlit as st
 import pandas as pd
 import pickle
-from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 
-# Load the trained model and ColumnTransformer
+# Load the trained model
 model = pickle.load(open("rfc.pkl", "rb"))
-
 
 # Create the Streamlit app
 st.title("Employee Churn Prediction")
@@ -38,11 +36,16 @@ input_data = pd.DataFrame({
     'n_projects': [n_projects]
 })
 
-# Preprocess the input data using the loaded ColumnTransformer
-input_data_encoded = ct.transform(input_data)
+# Manual one-hot encoding for 'department' and 'salary'
+encoder = OneHotEncoder(sparse=False, drop='first', handle_unknown='ignore')
+encoded_features = encoder.fit_transform(input_data[['department', 'salary']])
+
+# Combine encoded features with other input features
+encoded_df = pd.DataFrame(encoded_features, columns=encoder.get_feature_names_out(['department', 'salary']))
+input_data_final = pd.concat([encoded_df, input_data.drop(['department', 'salary'], axis=1)], axis=1)
 
 # Make the prediction
-prediction = model.predict(input_data_encoded)
+prediction = model.predict(input_data_final)
 
 # Display the prediction
 if prediction[0] == 0:
