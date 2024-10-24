@@ -1,6 +1,7 @@
-import streamlit as st
+
 import pandas as pd
 import numpy as np
+import streamlit as st
 import pickle
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
@@ -11,44 +12,56 @@ model = pickle.load(open("rfc.pkl", "rb"))
 # Create the Streamlit app
 st.title("Employee Churn Prediction")
 
-# Input features
-department = st.selectbox("Department", ["sales", "product", "marketing", "technology", "support", "engineering", "management", "information_technology", "hr", "accounting", "finance", "procurement"])
-salary = st.selectbox("Salary", ["low", "medium", "high"])
+# Input features with default values and corrected feature list
+features = {
+    'department': ["sales", "product", "marketing", "technology", "support", "engineering", "management", "information_technology", "hr", "accounting", "finance", "procurement"],
+    'salary': ["low", "medium", "high"],
+    'filed_complaint': 0.0,
+    'last_evaluation': 0.0,
+    'recently_promoted': 0.0,
+    'satisfaction': 0.0,
+    'tenure': 0.0,
+    'avg_monthly_hrs': 0,
+    'n_projects': 0,
+    'n_companies': 0, # Added missing feature
+    'years_experience':0, # Added missing feature
+    'is_manager': 0.0, # Added missing feature
+    'status': 0.0 # Added missing feature
+     # Add all 22 features here with defaults
+}
 
-filed_complaint = st.number_input("Filed Complaint", min_value=0.0, max_value=1.0)
-last_evaluation = st.number_input("Last Evaluation Score", min_value=0.0, max_value=1.0)
-recently_promoted = st.number_input("Recently Promoted", min_value=0.0, max_value=1.0)
-satisfaction = st.number_input("Satisfaction", min_value=0.0, max_value=1.0)
-tenure = st.number_input("Tenure", min_value=0.0)
-avg_monthly_hrs = st.number_input("Average Monthly Hours", min_value=0)
-n_projects = st.number_input("Number of Projects", min_value=0)
-
+input_data = {}
+for feature, default_value in features.items():
+  if isinstance(default_value, list):
+    input_data[feature] = st.selectbox(feature.capitalize(), default_value)
+  elif isinstance(default_value, float):
+    input_data[feature] = st.number_input(feature.capitalize(), min_value=0.0, max_value=1.0, value=default_value)
+  elif isinstance(default_value, int):
+    input_data[feature] = st.number_input(feature.capitalize(), min_value=0, value=default_value)
 
 # Create a DataFrame for the input features
-input_data = pd.DataFrame({
-    'department': [department],
-    'salary': [salary],
-    'filed_complaint': [filed_complaint],
-    'last_evaluation': [last_evaluation],
-    'recently_promoted': [recently_promoted],
-    'satisfaction': [satisfaction],
-    'tenure': [tenure],
-    'avg_monthly_hrs': [avg_monthly_hrs],
-    'n_projects': [n_projects]
-})
-
+input_df = pd.DataFrame([input_data])
 
 # Preprocess the input data using the same ColumnTransformer as during training
 # Note: We are re-creating the transformation here, ensuring consistency
-ct = ColumnTransformer([("trf1", OneHotEncoder(sparse_output=False, drop='first', handle_unknown='ignore'), ["department","salary"])], remainder="passthrough")
-input_data_encoded = ct.fit_transform(input_data)
+# IMPORTANT:  The categories in the OneHotEncoder MUST match the training data
+categorical_features = ['department', 'salary']
+ct = ColumnTransformer([("trf1", OneHotEncoder(sparse_output=False, drop='first', handle_unknown='ignore'), categorical_features)], remainder="passthrough")
 
+# Get feature names after one-hot encoding (important for consistent order)
+feature_names = list(ct.fit(pd.DataFrame(features,index=[0])).get_feature_names_out())
 
-# Make the prediction
-prediction = model.predict(input_data_encoded)
+input_data_encoded = ct.transform(input_df)
 
-# Display the prediction
-if prediction[0] == 0:
-    st.write("Prediction: The employee is likely to stay.")
+# Check if the number of features matches the model's expectation
+if input_data_encoded.shape[1] != 22:
+    st.error(f"Error: Input features should be 22, but got {input_data_encoded.shape[1]}. Please provide all 22 features with valid values.")
 else:
-    st.write("Prediction: The employee is likely to leave.")
+    # Make the prediction
+    prediction = model.predict(input_data_encoded)
+
+    # Display the prediction
+    if prediction[0] == 0:
+        st.write("Prediction: The employee is likely to stay.")
+    else:
+        st.write("Prediction: The employee is likely to leave.")
