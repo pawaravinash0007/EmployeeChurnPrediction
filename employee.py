@@ -6,7 +6,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 # Load the trained model and ColumnTransformer
 model = pickle.load(open("rfc.pkl", "rb"))
-ct = pickle.load(open("ct.pkl", "rb"))  # Load the saved ColumnTransformer
+
 
 # Create the Streamlit app
 st.title("Employee Churn Prediction")
